@@ -55,12 +55,15 @@ function TupleMatrix{M, N, T}(A::AbstractMatrix{T}) where {M, N, T}
     TupleMatrix{M, N, T, M * N}(ntuple(idx -> T(A[idx]), Val(M * N)))
 end
 
-function TupleMatrix{M, N, T}(f::Function) where {M, N, T}
-    data = ntuple(Val(M * N)) do idx
-        j, i = fldmod1(idx, M)
-        f(i, j)::T
+@generated function TupleMatrix{M, N, T}(f::F) where {M, N, T, F}
+    tup = Expr(:tuple)
+    for j in 1:N, i in 1:M
+        push!(tup.args, :(f($i, $j)::T))
     end
-    return TupleMatrix{M, N, T, M * N}(data)
+    return quote
+        $(Expr(:meta, :inline))
+        TupleMatrix{M, N, T, $(M * N)}($tup)
+    end
 end
 
 Base.size(::TupleMatrix{M, N}) where {M, N} = (M, N)
