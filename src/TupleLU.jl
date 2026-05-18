@@ -52,7 +52,7 @@ TupleMatrix{M, N, T}(x::NTuple{L, T}) where {M, N, T, L} = TupleMatrix{M, N, T, 
 TupleMatrix{M, N}(A::AbstractMatrix{T}) where {M,N,T} = TupleMatrix{M, N, T}(A)
 function TupleMatrix{M, N, T}(A::AbstractMatrix{T}) where {M, N, T}
     size(A) == (M, N) || throw(DimensionMismatch("expected size ($M, $N), got $(size(A))"))
-    TupleMatrix{M, N, T, M * N}(ntuple(idx -> T(A[idx]), Val(M * N)))
+    @inbounds TupleMatrix{M, N, T, M * N}(ntuple(idx -> T(A[idx]), Val(M * N)))
 end
 
 @generated function TupleMatrix{M, N, T}(f::F) where {M, N, T, F}
@@ -194,10 +194,10 @@ LinearAlgebra.issuccess(F::LU) = _first_zero_on_diagonal(F.U) == 0
 
 # Above this many entries the unrolled implementation pushes type inference hard enough
 # that compile time dominates; we delegate to `Base.lu(::Matrix, …)` instead.
-const _UNROLL_LIMIT = 14 * 14
+const UNROLL_LIMIT = 14 * 14
 
 @generated function _lu(A::TupleLUMatrix{M, N, T}, pivot, check) where {M, N, T}
-    if M * N ≤ _UNROLL_LIMIT
+    if M * N ≤ UNROLL_LIMIT
         _pivot = if isdefined(LinearAlgebra, :PivotingStrategy)
             pivot === RowMaximum ? Val(true) :
             pivot === NoPivot    ? Val(false) :
@@ -221,15 +221,16 @@ const _UNROLL_LIMIT = 14 * 14
         else
             pivot()
         end
+        # `f.L`'s eltype is not type-inferable, so derive the eltype up front from
+        # `arithmetic_closure(T)` rather than reading it back off the result.
+        T2 = arithmetic_closure(T)
+        K = min(M, N)
         quote
             # Delegate to Base for large matrices to avoid runaway compile times.
             f = lu(Matrix(A), $(_pivot); check = check)
-            # `f.L`'s eltype is not type-inferable, so derive the eltype up front from
-            # `arithmetic_closure(T)` rather than reading it back off the result.
-            T2 = arithmetic_closure(T)
-            L = similar_type(A, T2, Size($M, $(min(M, N))))(f.L)
-            U = similar_type(A, T2, Size($(min(M, N)), $N))(f.U)
-            p = similar_type(A, Int, Size($M))(f.p)
+            L = TupleMatrix{$M, $K, $T2}(Matrix{$T2}(f.L))
+            U = TupleMatrix{$K, $N, $T2}(Matrix{$T2}(f.U))
+            p = NTuple{$M, Int}(f.p)
             return L, U, p
         end
     end
