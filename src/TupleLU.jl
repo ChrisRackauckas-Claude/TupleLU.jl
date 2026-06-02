@@ -49,10 +49,10 @@ struct TupleMatrix{M, N, T, L} <: AbstractMatrix{T}
 end
 TupleMatrix{M, N}(x::NTuple{L, T}) where {M, N, T, L} = TupleMatrix{M, N, T, L}(x)
 TupleMatrix{M, N, T}(x::NTuple{L, T}) where {M, N, T, L} = TupleMatrix{M, N, T, L}(x)
-TupleMatrix{M, N}(A::AbstractMatrix{T}) where {M,N,T} = TupleMatrix{M, N, T}(A)
+TupleMatrix{M, N}(A::AbstractMatrix{T}) where {M, N, T} = TupleMatrix{M, N, T}(A)
 function TupleMatrix{M, N, T}(A::AbstractMatrix{T}) where {M, N, T}
     size(A) == (M, N) || throw(DimensionMismatch("expected size ($M, $N), got $(size(A))"))
-    TupleMatrix{M, N, T, M * N}(ntuple(idx -> T(A[idx]), Val(M * N)))
+    return TupleMatrix{M, N, T, M * N}(ntuple(idx -> T(A[idx]), Val(M * N)))
 end
 
 function TupleMatrix{M, N, T}(f::Function) where {M, N, T}
@@ -70,13 +70,15 @@ _throw_boundserror(A, I) = (@noinline; throw(BoundsError(A, I)))
 
 Base.@propagate_inbounds Base.getindex(t::TupleMatrix, i) = t.data[i]
 Base.@propagate_inbounds function Base.getindex(
-        t::TupleMatrix{M}, i::Integer, j::Integer) where {M}
+        t::TupleMatrix{M}, i::Integer, j::Integer
+    ) where {M}
     return t.data[i + (j - 1) * M]
 end
 # Row slice: returns the i-th row as a `NTuple{N, T}`. The factorization uses this to
 # capture `A[kp, :]` (the pivot row) without going through an intermediate matrix.
 Base.@propagate_inbounds function Base.getindex(
-        t::TupleMatrix{M, N, T, L}, i, c::Colon) where {M, N, T, L}
+        t::TupleMatrix{M, N, T, L}, i, c::Colon
+    ) where {M, N, T, L}
     @boundscheck 1 ≤ i ≤ M || _throw_boundserror(t, (i, c))
     return @inbounds ntuple(idx -> t.data[i + (idx - 1) * M], Val(N))
 end
@@ -88,10 +90,10 @@ const TupleLUMatrix{N, M, T} = Union{
     Hermitian{T, <:TupleMatrix{N, M, T}},
 }
 const TupleULT{TA} = Union{
-    UpperTriangular{TA,<:TupleMatrix},
-    LowerTriangular{TA,<:TupleMatrix},
-    UnitUpperTriangular{TA,<:TupleMatrix},
-    UnitLowerTriangular{TA,<:TupleMatrix},
+    UpperTriangular{TA, <:TupleMatrix},
+    LowerTriangular{TA, <:TupleMatrix},
+    UnitUpperTriangular{TA, <:TupleMatrix},
+    UnitLowerTriangular{TA, <:TupleMatrix},
 }
 
 const _PIVOT_OPTIONS = (:(Val{true}), :(Val{false}), :NoPivot, :RowMaximum)
@@ -136,7 +138,7 @@ function Base.show(io::IO, mime::MIME{Symbol("text/plain")}, F::LU)
     println(io, "L factor:")
     show(io, mime, F.L)
     println(io, "\nU factor:")
-    show(io, mime, F.U)
+    return show(io, mime, F.U)
 end
 
 
@@ -165,7 +167,8 @@ for pv in _PIVOT_OPTIONS
     end
 
     @eval function LinearAlgebra.lu(
-            A::TupleLUMatrix{N, N}, pivot::$pv; check = true) where {N}
+            A::TupleLUMatrix{N, N}, pivot::$pv; check = true
+        ) where {N}
         L, U, p = _lu(A, pivot, check)
         return LU(LowerTriangular(L), UpperTriangular(U), p)
     end
@@ -194,11 +197,11 @@ LinearAlgebra.issuccess(F::LU) = _first_zero_on_diagonal(F.U) == 0
 const _UNROLL_LIMIT = 14 * 14
 
 @generated function _lu(A::TupleLUMatrix{M, N, T}, pivot, check) where {M, N, T}
-    if M * N ≤ _UNROLL_LIMIT
+    return if M * N ≤ _UNROLL_LIMIT
         _pivot = if isdefined(LinearAlgebra, :PivotingStrategy)
             pivot === RowMaximum ? Val(true) :
-            pivot === NoPivot    ? Val(false) :
-            pivot()
+                pivot === NoPivot ? Val(false) :
+                pivot()
         else
             pivot()
         end
@@ -212,9 +215,9 @@ const _UNROLL_LIMIT = 14 * 14
         end
     else
         _pivot = if isdefined(LinearAlgebra, :PivotingStrategy)
-            pivot === Val{true}  ? RowMaximum() :
-            pivot === Val{false} ? NoPivot() :
-            pivot()
+            pivot === Val{true} ? RowMaximum() :
+                pivot === Val{false} ? NoPivot() :
+                pivot()
         else
             pivot()
         end
@@ -251,8 +254,10 @@ __lu(A::TupleMatrix{1, 0, T}, ::Val{Pivot}) where {T, Pivot} =
     (TupleMatrix{1, 0, typeof(one(T)), 0}(), TupleMatrix{0, 0, T, 0}(), NTuple{1, Int}(1))
 
 __lu(A::TupleMatrix{M, 0, T}, ::Val{Pivot}) where {T, M, Pivot} =
-    (TupleMatrix{M, 0, typeof(one(T)), 0}(), TupleMatrix{0, 0, T, 0}(),
-        NTuple{M, Int}(1:M))
+    (
+    TupleMatrix{M, 0, typeof(one(T)), 0}(), TupleMatrix{0, 0, T, 0}(),
+    NTuple{M, Int}(1:M),
+)
 
 __lu(A::TupleMatrix{1, 1, T}, ::Val{Pivot}) where {T, Pivot} =
     (TupleMatrix{1, 1, T, 1}((one(T),)), A, NTuple{1, Int}(1))

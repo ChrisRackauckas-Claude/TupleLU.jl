@@ -14,11 +14,6 @@ concurrency:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
-      actions: write
-      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -32,12 +27,10 @@ jobs:
           - windows-latest
         arch:
           - x64
-    steps:
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v3
-        with:
-          version: ${{ matrix.version }}
-          arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v3
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+    uses: "SciML/.github/.github/workflows/tests.yml@v1"
+    with:
+      julia-version: ${{ matrix.version }}
+      julia-arch: ${{ matrix.arch }}
+      os: ${{ matrix.os }}
+      coverage: false
+    secrets: "inherit"
