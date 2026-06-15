@@ -7,20 +7,16 @@ authors = ["SciML"]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [compat]
-Aqua = "0.8.14"
-ExplicitImports = "1.14.0"
 LinearAlgebra = "1"
-Pkg = "1"
-ReTestItems = "1.28.0"
+SafeTestsets = "0.1, 1"
+SciMLTesting = "1"
 Test = "1"
 julia = "1.10"
 
 [extras]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "ExplicitImports", "Pkg", "ReTestItems", "Test"]
+test = ["SafeTestsets", "SciMLTesting", "Test"]
