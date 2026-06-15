@@ -1,8 +1,8 @@
-@testitem "LU" begin
-    using TupleLU
-    using LinearAlgebra
-    using Test
+using TupleLU
+using LinearAlgebra
+using Test
 
+@testset "LU" begin
     @testset "LU utils" begin
         # column-major: [1.0 2.0; 3.0 4.0]
         F = lu(TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0)))
@@ -100,5 +100,4 @@
         @test eltype(L) === Float64
         @test eltype(U) === Float64
     end
-
-end # @testitem "LU"
+end
