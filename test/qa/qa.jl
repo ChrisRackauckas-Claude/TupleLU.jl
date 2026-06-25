@@ -1,20 +1,15 @@
-using TupleLU
-using Aqua
-using ExplicitImports
-using JET
-using Test
+using SciMLTesting, TupleLU, JET, Test
 
-@testset "Code quality (Aqua.jl)" begin
-    Aqua.test_all(TupleLU, unbound_args = false)
-    # `(TupleMatrix{M, N})(x::NTuple{L, T}) where {M, N, T, L}` trips test_unbound_args.
-    Aqua.test_unbound_args(TupleLU, broken = true)
-end
-
-@testset "Explicit Imports" begin
-    @test check_no_implicit_imports(TupleLU) === nothing
-    @test check_no_stale_explicit_imports(TupleLU) === nothing
-end
-
-@testset "Code linting (JET.jl)" begin
-    @test_broken false  # JET: undefined `similar_type` in getproperty + degenerate TupleMatrix __lu ctors — see https://github.com/SciML/TupleLU.jl/issues/8
-end
+run_qa(
+    TupleLU;
+    explicit_imports = true,
+    aqua_broken = (:unbound_args,),  # (TupleMatrix{M,N})(x::NTuple{L,T}) trips test_unbound_args — https://github.com/SciML/TupleLU.jl/issues/8
+    jet_broken = true,               # similar_type undefined in getproperty + degenerate TupleMatrix __lu ctors — https://github.com/SciML/TupleLU.jl/issues/8
+    jet_kwargs = (; target_defined_modules = true),
+    ei_kwargs = (;
+        all_qualified_accesses_are_public = (;
+            # @propagate_inbounds/setindex: Base internals; HermOrSym: LinearAlgebra internal
+            ignore = (Symbol("@propagate_inbounds"), :setindex, :HermOrSym),
+        ),
+    ),
+)
