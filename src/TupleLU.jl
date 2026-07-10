@@ -38,6 +38,16 @@ two `AbstractMatrix` forms copy entries from a runtime-sized matrix after verify
 shape matches `(M, N)`. The final form constructs entries on the fly by calling `f(i, j)`
 for each row/column index pair — this is the workhorse the factorization uses to assemble
 each new submatrix.
+
+# Examples
+
+```julia
+using TupleLU
+
+A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
+size(A)
+A[1, 2]
+```
 """
 struct TupleMatrix{M, N, T, L} <: AbstractMatrix{T}
     data::NTuple{L, T}
@@ -110,6 +120,17 @@ LU factorization returned by [`lu`](@ref) on a [`TupleMatrix`](@ref).
 This mirrors `LinearAlgebra.LU` but stores the row-permutation `p` as an `NTuple` rather
 than a `Vector`, keeping the factorization fully type-stable. The components destructure
 in the usual order: `L, U, p = F`.
+
+# Examples
+
+```julia
+using LinearAlgebra
+using TupleLU
+
+A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
+F = lu(A)
+L, U, p = F
+```
 """
 struct LU{L, U, p}
     L::L
@@ -155,6 +176,17 @@ if the upper factor has a zero on its diagonal.
 For square inputs the factors are returned wrapped in `LowerTriangular` and
 `UpperTriangular`. Rectangular inputs return raw [`TupleMatrix`](@ref) factors because
 `Base` does not support triangular wrappers around rectangular matrices.
+
+# Examples
+
+```julia
+using LinearAlgebra
+using TupleLU
+
+A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
+F = lu(A)
+issuccess(F)
+```
 """
 LinearAlgebra.lu(A::TupleLUMatrix; check = true) = lu(A, Val(true); check = check)
 
@@ -190,6 +222,25 @@ function _first_zero_on_diagonal(A::TupleLUMatrix{M, N, T}) where {M, N, T}
     end
 end
 
+"""
+    LinearAlgebra.issuccess(F::TupleLU.LU) -> Bool
+
+Return whether the tuple-backed LU factorization completed without a zero pivot.
+
+This checks the diagonal of the stored upper factor. It mirrors
+`LinearAlgebra.issuccess` for standard factorizations while avoiding heap-backed
+factor storage.
+
+# Examples
+
+```julia
+using LinearAlgebra
+using TupleLU
+
+A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
+issuccess(lu(A))
+```
+"""
 LinearAlgebra.issuccess(F::LU) = _first_zero_on_diagonal(F.U) == 0
 
 # Above this many entries the unrolled implementation pushes type inference hard enough

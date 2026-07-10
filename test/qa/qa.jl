@@ -1,5 +1,7 @@
 using SciMLTesting, TupleLU, JET, Test
 
+include("public_api_docs.jl")
+
 run_qa(
     TupleLU;
     explicit_imports = true,
