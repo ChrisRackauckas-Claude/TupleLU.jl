@@ -10,9 +10,10 @@ TupleLU = "4685c049-1b75-4cfe-a794-f7bdcd19aa98"
 Aqua = "0.8"
 JET = "0.9,0.10,0.11"
 SafeTestsets = "0.1, 1"
-SciMLTesting = "1.6"
+SciMLTesting = "2.1"
 Test = "1"
 julia = "1.10"
 
 [sources]
+SciMLTesting = {url = "https://github.com/SciML/SciMLTesting.jl", rev = "a5cecca928f2c684c23505c3cd83921d71753e2e"}
 TupleLU = {path = "../.."}
