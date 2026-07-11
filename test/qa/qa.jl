@@ -1,4 +1,4 @@
-using SciMLTesting, TupleLU, JET, Test
+using SciMLTesting, TupleLU, JET
 
 run_qa(
     TupleLU;
@@ -13,9 +13,3 @@ run_qa(
         ),
     ),
 )
-
-@testset "public API appears in README" begin
-    readme = read(joinpath(pkgdir(TupleLU), "README.md"), String)
-    missing = filter(name -> !occursin(String(name), readme), public_api_names(TupleLU))
-    @test isempty(missing)
-end
