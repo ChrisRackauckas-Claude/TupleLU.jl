@@ -1,6 +1,4 @@
-using SciMLTesting, TupleLU, JET, Test
-
-include("public_api_docs.jl")
+using SciMLTesting, TupleLU, JET
 
 run_qa(
     TupleLU;
