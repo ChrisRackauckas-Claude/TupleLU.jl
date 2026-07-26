@@ -297,6 +297,7 @@ const _UNROLL_LIMIT = 14 * 14
         else
             pivot()
         end
+        permutation = Expr(:tuple, [:(f.p[$i]) for i in 1:M]...)
         quote
             # Delegate to Base for large matrices to avoid runaway compile times.
             f = lu(Matrix(A), $(_pivot); check = check)
@@ -305,7 +306,7 @@ const _UNROLL_LIMIT = 14 * 14
             T2 = arithmetic_closure(T)
             L = TupleMatrix{$M, $(min(M, N)), T2}(f.L)
             U = TupleMatrix{$(min(M, N)), $N, T2}(f.U)
-            p = ntuple(i -> f.p[i], Val($M))
+            p = $permutation
             return L, U, p
         end
     end
