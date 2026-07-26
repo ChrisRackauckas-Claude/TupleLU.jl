@@ -12,6 +12,6 @@ TupleLU provides LU factorization for small, statically-sized matrices backed by
 TupleLU
 TupleMatrix
 LU
-LinearAlgebra.lu(::TupleLU.TupleLUMatrix)
-LinearAlgebra.issuccess(::LU)
+lu
+issuccess
 ```
