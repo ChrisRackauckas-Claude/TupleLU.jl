@@ -13,9 +13,25 @@ module TupleLU
 
 using LinearAlgebra: LinearAlgebra, Hermitian, LowerTriangular, NoPivot, RowMaximum
 using LinearAlgebra: SingularException, Symmetric, UnitLowerTriangular, UnitUpperTriangular
-using LinearAlgebra: UpperTriangular, issuccess, lu
+using LinearAlgebra: UpperTriangular
 
 export TupleMatrix, LU, lu, issuccess
+
+"""
+    lu(A; kwargs...)
+
+Compute an LU factorization. This forwards to `LinearAlgebra.lu` for
+all supported inputs; [`TupleMatrix`](@ref) inputs return a tuple-backed [`LU`](@ref).
+"""
+lu(args...; kwargs...) = LinearAlgebra.lu(args...; kwargs...)
+
+"""
+    issuccess(F) -> Bool
+
+Return whether an LU factorization completed without a zero pivot. This forwards to
+`LinearAlgebra.issuccess`, including the tuple-backed [`LU`](@ref) method.
+"""
+issuccess(args...) = LinearAlgebra.issuccess(args...)
 
 """
     TupleMatrix{M, N, T, L} <: AbstractMatrix{T}
@@ -57,8 +73,13 @@ struct TupleMatrix{M, N, T, L} <: AbstractMatrix{T}
         return new{M, N, T, L}(x)
     end
 end
-TupleMatrix{M, N}(x::NTuple{L, T}) where {M, N, T, L} = TupleMatrix{M, N, T, L}(x)
-TupleMatrix{M, N, T}(x::NTuple{L, T}) where {M, N, T, L} = TupleMatrix{M, N, T, L}(x)
+function TupleMatrix{M, N}(x::Tuple) where {M, N}
+    T = eltype(x)
+    return TupleMatrix{M, N, T, length(x)}(x)
+end
+function TupleMatrix{M, N, T}(x::Tuple) where {M, N, T}
+    return TupleMatrix{M, N, T, length(x)}(x)
+end
 TupleMatrix{M, N}(A::AbstractMatrix{T}) where {M, N, T} = TupleMatrix{M, N, T}(A)
 function TupleMatrix{M, N, T}(A::AbstractMatrix{T}) where {M, N, T}
     size(A) == (M, N) || throw(DimensionMismatch("expected size ($M, $N), got $(size(A))"))
@@ -119,7 +140,7 @@ LU factorization returned by [`lu`](@ref) on a [`TupleMatrix`](@ref).
 
 This mirrors `LinearAlgebra.LU` but stores the row-permutation `p` as an `NTuple` rather
 than a `Vector`, keeping the factorization fully type-stable. The components destructure
-in the usual order: `L, U, p = F`.
+in the usual order: `L, U, p = F`. `F.P` returns the corresponding permutation matrix.
 
 # Examples
 
@@ -128,7 +149,7 @@ using LinearAlgebra
 using TupleLU
 
 A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
-F = lu(A)
+F = TupleLU.lu(A)
 L, U, p = F
 ```
 """
@@ -148,7 +169,11 @@ Base.iterate(S::LU, ::Val{:done}) = nothing
     if s === :P
         U = getfield(F, :U)
         p = getfield(F, :p)
-        return one(similar_type(p, Size(U)))[:, invperm(p)]
+        M = length(p)
+        T = eltype(U)
+        return TupleMatrix{M, M, T}() do i, j
+            j == p[i] ? one(T) : zero(T)
+        end
     else
         return getfield(F, s)
     end
@@ -184,8 +209,8 @@ using LinearAlgebra
 using TupleLU
 
 A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
-F = lu(A)
-issuccess(F)
+F = TupleLU.lu(A)
+TupleLU.issuccess(F)
 ```
 """
 LinearAlgebra.lu(A::TupleLUMatrix; check = true) = lu(A, Val(true); check = check)
@@ -238,7 +263,7 @@ using LinearAlgebra
 using TupleLU
 
 A = TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))
-issuccess(lu(A))
+TupleLU.issuccess(TupleLU.lu(A))
 ```
 """
 LinearAlgebra.issuccess(F::LU) = _first_zero_on_diagonal(F.U) == 0
@@ -272,15 +297,16 @@ const _UNROLL_LIMIT = 14 * 14
         else
             pivot()
         end
+        permutation = Expr(:tuple, [:(f.p[$i]) for i in 1:M]...)
         quote
             # Delegate to Base for large matrices to avoid runaway compile times.
             f = lu(Matrix(A), $(_pivot); check = check)
             # `f.L`'s eltype is not type-inferable, so derive the eltype up front from
             # `arithmetic_closure(T)` rather than reading it back off the result.
             T2 = arithmetic_closure(T)
-            L = similar_type(A, T2, Size($M, $(min(M, N))))(f.L)
-            U = similar_type(A, T2, Size($(min(M, N)), $N))(f.U)
-            p = similar_type(A, Int, Size($M))(f.p)
+            L = TupleMatrix{$M, $(min(M, N)), T2}(f.L)
+            U = TupleMatrix{$(min(M, N)), $N, T2}(f.U)
+            p = $permutation
             return L, U, p
         end
     end
@@ -313,7 +339,7 @@ __lu(A::TupleMatrix{M, 0, T}, ::Val{Pivot}) where {T, M, Pivot} =
 __lu(A::TupleMatrix{1, 1, T}, ::Val{Pivot}) where {T, Pivot} =
     (TupleMatrix{1, 1, T, 1}((one(T),)), A, NTuple{1, Int}(1))
 
-__lu(A::LinearAlgebra.HermOrSym{T, <:TupleMatrix{1, 1, T}}, ::Val{Pivot}) where {T, Pivot} =
+__lu(A::Union{Symmetric{T, <:TupleMatrix{1, 1, T}}, Hermitian{T, <:TupleMatrix{1, 1, T}}}, ::Val{Pivot}) where {T, Pivot} =
     (TupleMatrix{1, 1, T, 1}((one(T),)), A.data, NTuple{1, Int}(1))
 
 __lu(A::TupleMatrix{1, N, T}, ::Val{Pivot}) where {N, T, Pivot} =
@@ -337,7 +363,7 @@ function __lu(A::TupleMatrix{M, 1, T}, ::Val{Pivot}) where {M, T, Pivot}
         end
         ps = tailindices(Val{M})
         if kp != 1
-            ps = Base.setindex(ps, 1, kp - 1)
+            ps = ntuple(i -> i == kp - 1 ? 1 : ps[i], Val(M - 1))
         end
         # Scale the first column by the inverse of the pivot.
         Akk = A[kp, 1]
@@ -381,7 +407,7 @@ function __lu(A::TupleLUMatrix{M, N, T}, ::Val{Pivot}) where {M, N, T, Pivot}
         end
         ps = tailindices(Val{M})::NTuple{M - 1, Int}
         if kp != 1
-            ps = Base.setindex(ps, 1, kp - 1)
+            ps = ntuple(i -> i == kp - 1 ? 1 : ps[i], Val(M - 1))
         end
 
         Ufirst = A[kp, :]

@@ -1,4 +1,6 @@
-using TupleLU
+import TupleLU
+using TupleLU: LU, TupleMatrix
+import TupleLU: issuccess, lu
 using LinearAlgebra
 using Test
 
@@ -7,8 +9,12 @@ using Test
         # column-major: [1.0 2.0; 3.0 4.0]
         F = lu(TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0)))
 
+        @test TupleLU.lu([1.0 2.0; 3.0 4.0]) == LinearAlgebra.lu([1.0 2.0; 3.0 4.0])
         @test @inferred((F -> F.p)(F)) === (2, 1)
+        @test TupleLU.issuccess(F)
         @test occursin(r"L factor.*U factor"s, sprint(show, MIME("text/plain"), F))
+        @test Matrix(F.P) * Matrix(TupleMatrix{2, 2}((1.0, 3.0, 2.0, 4.0))) ≈
+            Matrix(F.L) * Matrix(F.U)
     end
 
     @testset "TupleMatrix construction" begin
@@ -99,5 +105,12 @@ using Test
         L, U, p = lu(TupleMatrix{2, 2}((1, 3, 2, 4)))
         @test eltype(L) === Float64
         @test eltype(U) === Float64
+    end
+
+    @testset "Large matrix fallback" begin
+        n = 15
+        A = TupleMatrix{n, n}(Float64[i == j ? 2 : 1 / (i + j) for i in 1:n, j in 1:n])
+        F = lu(A)
+        @test Matrix(F.L) * Matrix(F.U) ≈ Matrix(A)[collect(F.p), :]
     end
 end
