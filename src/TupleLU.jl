@@ -488,4 +488,17 @@ end
 # TODO: Get rid of the collect
 Base.:(/)(B::AbstractMatrix, F::LU) = @inbounds ((B / F.U) / F.L)[:, collect(invperm(F.p))]
 
+using PrecompileTools: @compile_workload, @setup_workload
+
+@setup_workload begin
+    @compile_workload begin
+        A = TupleMatrix{2, 2}((4.0, 2.0, 1.0, 3.0))
+        F = lu(A)
+        issuccess(F)
+        F.P
+        F \ [1.0, 2.0]
+        F \ [1.0 2.0; 3.0 4.0]
+    end
+end
+
 end # module TupleLU
