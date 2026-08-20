@@ -9,7 +9,6 @@ makedocs(;
         "Home" => "index.md",
     ],
     checkdocs = :exports,
-    doctest = false,
 )
 
 deploydocs(; repo = "github.com/SciML/TupleLU.jl.git", push_preview = true)
